@@ -19,6 +19,7 @@ metadata:
     {{- include "mongodb.labels" . | nindent 4 }}
   annotations:
     prometheus.io/scrape: "true"
+    prometheus.io/port: "9216"
 spec:
   ports:
     - name: mongodb-exporter
