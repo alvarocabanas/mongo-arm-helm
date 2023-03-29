@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mongodb.fullname" . }}-client
+  labels:
+    {{- include "mongodb.labels" . | nindent 4 }}
+    role: client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "mongodb.selectorLabels" . | nindent 6 }}
+      role: client
+  template:
+    metadata:
+      labels:
+        {{- include "mongodb.labels" . | nindent 8 }}
+        role: client
+    spec:
+      terminationGracePeriodSeconds: 0
+      containers:
+      - name: client
+        image: "{{ .Values.mongodb.image.repository }}:{{ .Values.mongodb.image.tag | default .Chart.AppVersion }}"
+        args:
+        - bash
+        - -c
+        - |
+          MAX_KEYS=10000
+          function key() { KEY=$((RANDOM % $MAX_KEYS)); }
+          while true; do
+          mongo --host mongodb -u root -p pass --eval "printjson(db.serverStatus())" > /dev/null
+          key
+            mongo --host mongodb -u root -p pass --eval "printjson(db.myFirstCollection.insertOne( { _id: $KEY } ))" > /dev/null
+            mongo --host mongodb -u root -p pass --eval "printjson(db.myFirstCollection.deleteOne( { _id: $KEY } ))" > /dev/null
+            mongo --host mongodb -u root -p pass --eval "printjson(db.myFirstCollection.insertOne( { _id: $KEY } ))" > /dev/null
+            key
+            mongo --host mongodb -u root -p pass --eval "printjson(db.mySecondCollection.insertOne( { _id: $KEY } ))" > /dev/null
+            key
+            mongo --host mongodb -u root -p pass --eval "printjson(db.mySecondCollection.insertOne( { _id: $KEY } ))" > /dev/null
+            sleep $((RANDOM % 10))
+          done
+        resources:
+            {{- toYaml .Values.mongodb.resources | nindent 12 }}
